@@ -11,15 +11,15 @@ type Concurrency struct {
 	errOnce sync.Once
 	err     error
 
-	q chan interface{} // 结果队列
-	n int              // 并发数
+	q    chan interface{} // 结果队列
+	sema *nsema.Semaphore
 }
 
 func NewConcurrency(n int) *Concurrency {
 	if n < 1 {
 		n = 1
 	}
-	return &Concurrency{q: make(chan interface{}, 1), n: n}
+	return &Concurrency{q: make(chan interface{}, 1), sema: nsema.NewSemaphore(n)}
 }
 
 func (c *Concurrency) Do(f func(interface{}) (interface{}, error), paramSlice []interface{}) ([]interface{}, error) {
@@ -33,9 +33,8 @@ func (c *Concurrency) Do(f func(interface{}) (interface{}, error), paramSlice []
 		}
 	}()
 
-	sema := nsema.NewSemaphore(c.n)
 	for i := 0; i < len(paramSlice); i++ {
-		sema.Acquire()
+		c.sema.Acquire()
 		c.wg.Add(1)
 		go func(item interface{}) {
 			value, err := f(item)
@@ -47,7 +46,7 @@ func (c *Concurrency) Do(f func(interface{}) (interface{}, error), paramSlice []
 				c.q <- value
 			}
 
-			sema.Release()
+			c.sema.Release()
 		}(paramSlice[i])
 	}
 
