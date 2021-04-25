@@ -1,4 +1,4 @@
-module github/dongfanliang/gotools
+module github.com/dongfanliang/gotools
 
 go 1.15
 
